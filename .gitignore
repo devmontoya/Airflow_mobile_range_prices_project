@@ -1,3 +1,8 @@
+dags/data/intermediate/
+dags/data/outputs/
+dags/pipelines/
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

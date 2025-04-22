@@ -2,6 +2,10 @@ import sys
 from airflow.decorators import dag, task
 from datetime import datetime
 
+PATH_BASE = '/opt/airflow/dags/'
+sys.path.append(PATH_BASE)
+
+from common.email_management import success_email, failure_email, default_args
 
 @task.virtualenv(
     task_id="preprocess_data", 
@@ -23,7 +27,7 @@ def preprocess_data():
     from joblib import load
     
     # Se carga pipeline de preprocesado (crea y remueve features, aplica minmax basado en el conjunto de entrenamiento, entre otros)
-    preprocess_pp = load(PATH_BASE +'pipelines/prange_prepross_pipeline.joblib')
+    preprocess_pp = load(PATH_BASE +'pipelines/prange_preproce_pipeline.joblib')
 
     # Se carga conjunto de datos sobre los cuales se realizará la predicción y se ejecuta el pipeline de preprocesado sobre él
     PATH_DATASETS = PATH_BASE+'data/inputs'+'/'
@@ -77,7 +81,10 @@ def prediction_task():
 
 @dag(
     dag_id='prediction_dag',
+    default_args = default_args,
     start_date=datetime(2025, 4, 1),
+    on_failure_callback = lambda context: failure_email(context),
+    on_success_callback = lambda context: success_email(context),
     schedule=None
 )
 def prediction_dag():

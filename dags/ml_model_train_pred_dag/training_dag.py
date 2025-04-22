@@ -1,6 +1,11 @@
 import sys
-from airflow.decorators import dag, task
 from datetime import datetime
+from airflow.decorators import dag, task
+
+PATH_BASE = '/opt/airflow/dags/'
+sys.path.append(PATH_BASE)
+
+from common.email_management import success_email, failure_email, default_args
 
 
 @task.virtualenv(
@@ -36,7 +41,7 @@ def split_training_data():
     print(f'Datasets escritos en {PATH_INTERMEDIATE_DATASETS}')
 
 @task.virtualenv(
-    task_id="preprocesing_pp", 
+    task_id="preprocessing_pp",
     requirements=[
         "pandas", 
         "numpy", 
@@ -46,7 +51,7 @@ def split_training_data():
         ], 
     system_site_packages=False
 )
-def preprocesing_pp():
+def preprocessing_pp():
     """Realiza el Split para el conjunto de datos, crea un pipeline de preprocesado de datos y pipeline de entrenamiento"""
     import sys
     PATH_BASE = '/opt/airflow/dags/'
@@ -93,7 +98,7 @@ def preprocesing_pp():
     prange_pp_pipeline.fit(X_train)
 
     # Se guarda pipeline de preprocesado
-    joblib.dump(prange_pp_pipeline, PATH_BASE +'pipelines/prange_prepross_pipeline.joblib')
+    joblib.dump(prange_pp_pipeline, PATH_BASE +'pipelines/prange_preproce_pipeline.joblib')
 
     # Pipeline aplicado sobre el conjunto de entrenamiento
     X_train = pd.DataFrame(
@@ -133,7 +138,7 @@ def preprocesing_pp():
         ], 
     system_site_packages=False
 )
-def train_model():
+def training_model():
     """Se entrena el modelo ml sobre el conjunto de datos preprocesado"""
     import sys
     PATH_BASE = '/opt/airflow/dags/'
@@ -191,15 +196,17 @@ def train_model():
 
 @dag(
     dag_id='training_dag',
+    default_args = default_args,
     start_date=datetime(2025, 4, 1),
+    on_failure_callback = lambda context: failure_email(context),
+    on_success_callback = lambda context: success_email(context),
     schedule=None
 )
 def training_dag():
-
     sp_data_task = split_training_data()
-    preprocesing_tk = preprocesing_pp()
-    train_model_task = train_model()
+    preprocesing_tk = preprocessing_pp()
+    training_model_task = training_model()
 
-    sp_data_task >> preprocesing_tk >> train_model_task
+    sp_data_task >> preprocesing_tk >> training_model_task
 
 training_dag()
